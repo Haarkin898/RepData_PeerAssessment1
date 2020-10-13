@@ -1,25 +1,146 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "RepData_PeerAssessment1"
+author: "Haarkin898"
+date: "10/13/2020"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+## Load libraries needed for the analysis (Quest 1)
+```{r load libraries}
+       
+        library(dplyr)
+        library(lubridate)
+        library(ggplot2)
+```
 
+## read in the data set and assign it to an Object
+```{r loan and explore dataset}
+        ACM = read.csv("./activity.csv")
+        head(ACM, 3)
+        str(ACM)
+```        
 
+## refine the date variable, convert to date class and add as variable
+```{r ref}       
+        A <- as.Date(ACM$date, format = "%Y-%m-%d")
+        class(A)
+        ACM$A <- A
+        ACM = rename(ACM, Date = A)
+        ACM$date = NULL
+```
 
-## What is mean total number of steps taken per day?
+## Group data by Date and analyze 
+```{r Steps per Day}
+        ACMbyDate = group_by(ACM, Date)
+        ACMsum = summarise(ACMbyDate , steps = sum(steps, na.rm = TRUE) )
+```       
 
+## Plot histogram of above analysis
+```{r HistogramACM}
+        with(ACMsum, hist(steps, main = "Total number of steps per day", 
+                          xlab ="Steps per day"))
+```       
 
+## Determine mean and median steps per day 
+```{r summaryACM}
+ ACMsum = rename(ACMsum, TotalSteps = steps)
+ Mean = mean(ACMsum$TotalSteps)
+ Median = median(ACMsum$TotalSteps)
+ 
+``` 
 
-## What is the average daily activity pattern?
+The mean and median of the total number of steps taken per day are `r Mean` and `r Median` respectively
 
+## Average daily activity time series  
 
+```{r Int}       
+        ACMbyInterval = group_by(ACM, interval)
+        ACMbyInterval = summarise(ACMbyInterval , steps = mean(steps, 
+                                                               na.rm = TRUE) )
+```      
+        
+## Plot analysis from above
+```{r plot}
+        with(ACMbyInterval, plot(interval, steps, type = "l", 
+        main = "Average Daily Activity Pattern", xlab = "Time Interval"
+                                 , ylab = "Average Steps per Interval"))
+```
+        
+## interval with the maximum number of steps 
+```{r maxInt }
+        maxInterval = ACMbyInterval[which.max(ACMbyInterval$steps),]$interval
+        
+```
 
-## Imputing missing values
+The interval with the maximum number of steps is `r maxInterval`
 
+## In-filling missing values with interval mean 
+filling with daily mean is unlikely to change the output of the analysis as this will only return the same number of NA as the original dataset.
+The dplyr library was used in this analysis
+```{r replaceNA }       
+        sumACM = sum(is.na(ACM))
+        
+        impute.mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+        
+        ACM3 <- ACM
+        
+        ACM3 = ACM3 %>%
+                group_by(interval) %>%
+                mutate(
+                        steps = impute.mean(steps)
+                )
+        
+        sumACM3 = sum(is.na(ACM3))
+        
+```
 
+The sum of NAs in the original data, ACM, and the infilled data, ACM3, are 
+`r sumACM` and `r sumACM3` respectively. 
 
-## Are there differences in activity patterns between weekdays and weekends?
+## Histogram Plot of refined dataset ACM3 with respect to Total number of Steps per day
+
+Group data by Date and analyze 
+```{r ACM3}
+        ACM3byDate = group_by(ACM3, Date)
+        ACM3sum = summarise(ACM3byDate , steps = sum(steps, na.rm = TRUE) )
+        Mean2 = mean(ACM3sum$steps)
+        Median2 = median(ACM3sum$steps)
+```
+The mean and median of the total number of steps taken per day are `r Mean2` and 
+`r Median2` respectively. This is slightly different from `r Mean` and `r Median` 
+from the prior analysis. In this case the mean and the median are now the same 
+and higher in value. This process has change the skewness from left skewed to
+a symmetrical dataset.
+
+## Plot histogram of above analysis 
+```{r HistogramACM3 }
+        with(ACM3sum, hist(steps, main = "Total number of steps per day", 
+                          xlab ="Steps per day"))
+        
+```
+        
+## Time series analysis based on day type i.e. weekday vs weekends
+        
+```{r Daytype}
+        Day <- weekdays(ACM3$Date)
+        ACM3$Day = Day
+        ACM3$Daytype <- ifelse(ACM3$Day %in% c("Saturday", "Sunday"), "weekend",
+                               "weekday")
+        ACM3$Daytype = factor(ACM3$Daytype)
+        
+        ACMbyInt = group_by(ACM3, interval, Daytype)
+        ACMbyInt = summarize(ACMbyInt, steps = mean(steps))
+        
+```
+##Plot
+```{r ggplot}
+        g <- ggplot(ACMbyInt, aes(x=interval, y=steps)) +
+                geom_line() + facet_grid(Daytype~.) +
+                labs (x = "Time Interval", y = "Average Steps per Interval") +
+                labs (title = "Average Daily Activity Pattern by Day Type")
+        g
+```
