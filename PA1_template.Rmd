@@ -2,7 +2,10 @@
 title: "Reproducible Research: Peer Assessment 1"
 author: Haarkin898
 date :  October 13 2020
-output: html_document
+output:
+      html_document:
+        keep_md: true
+        self_contained: yes
 ---
 
 ```{r setup, include=FALSE}
